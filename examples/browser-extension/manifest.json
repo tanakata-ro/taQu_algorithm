@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "taQu Rule Helper Example",
+  "version": "0.1.0",
+  "description": "Example extension shape for local taQu rule validation.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "Validate taQu rule"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  }
+}

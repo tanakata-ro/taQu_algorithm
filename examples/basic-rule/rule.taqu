@@ -1,0 +1,14 @@
+rule = "Free"
+description = "Correct answers add one point. Wrong answers add one miss."
+maxAns = 1
+x.label = "Correct"
+y.label = "Wrong"
+
+def correct():
+  x += 1
+
+def wrong():
+  y += 1
+
+def through():
+  pass
