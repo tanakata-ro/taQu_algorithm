@@ -1,4 +1,4 @@
-# taQu Algorithm Public Kit v1.10.3
+# taQu Algorithm Public Kit v1.11.0
 
 このリポジトリは、taQu のルール記述仕様・判定アルゴリズム・参考実装を外部公開するためのものです。
 
