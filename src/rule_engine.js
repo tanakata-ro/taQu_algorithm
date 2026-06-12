@@ -48,8 +48,13 @@ class CustomRuleEngine {
     }
 
     normalizeSpecialVariable(name, value) {
-        if (name === 'miss') return Math.max(0, Math.min(5, Math.floor(Number(value) || 0)));
+        if (this.canonicalVariableName(name) === 'miss') return Math.max(0, Math.floor(Number(value) || 0));
         return value;
+    }
+
+    canonicalVariableName(name) {
+        if (name === 'mark') return 'miss';
+        return name;
     }
 
     isProtectedName(name) {
@@ -61,7 +66,7 @@ class CustomRuleEngine {
     }
 
     assertWritableName(name, context = 'assignment') {
-        const actual = name && name.startsWith('my_') ? name.slice(3) : name;
+        const actual = this.canonicalVariableName(name && name.startsWith('my_') ? name.slice(3) : name);
         if (this.isProtectedName(actual)) {
             throw new Error(`${context}: "${name}" is reserved and cannot be written`);
         }

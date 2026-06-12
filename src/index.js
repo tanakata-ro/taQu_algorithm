@@ -28,6 +28,7 @@ function createPlayerState(overrides = {}) {
         x: Number(overrides.x) || 0,
         y: Number(overrides.y) || 0,
         z: Number(overrides.z) || 0,
+        w: Number(overrides.w) || 0,
         status: overrides.status || 'playing',
         isLocked: !!overrides.isLocked,
         isTeamLocked: !!overrides.isTeamLocked,

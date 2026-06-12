@@ -77,13 +77,13 @@ tokenize(str) {
                 } else if (word === 'tProd') {
                     const targetVar = argsContent.trim();
                     this.assertReadableVariableName(targetVar, 'tProd');
-                    tokens.push({ type: 'tProd', varName: targetVar });
+                    tokens.push({ type: 'tProd', varName: this.canonicalVariableName(targetVar) });
                 } else if (word === 'rankVal') {
                     const args = this.splitArgs(argsContent);
                     const varName = args[0]?.trim();
                     this.assertReadableVariableName(varName, 'rankVal');
                     const rankExpr = this.parseExpression(args[1] || '1');
-                    tokens.push({ type: 'rankVal', varName, rankExpr });
+                    tokens.push({ type: 'rankVal', varName: this.canonicalVariableName(varName), rankExpr });
                 } else if (word === 'abs') {
                     tokens.push({ type: 'abs', value: this.parseExpression(argsContent) });
                 } else if (word === 'ceil') {
@@ -104,19 +104,19 @@ tokenize(str) {
                 } else if (word === 'tSum') {
                     const targetVar = argsContent.trim();
                     this.assertReadableVariableName(targetVar, 'tSum');
-                    tokens.push({ type: 'tAdd', varName: targetVar });
+                    tokens.push({ type: 'tAdd', varName: this.canonicalVariableName(targetVar) });
                 } else if (word === 'tMax') {
                     const targetVar = argsContent.trim();
                     this.assertReadableVariableName(targetVar, 'tMax');
-                    tokens.push({ type: 'tMax', varName: targetVar });
+                    tokens.push({ type: 'tMax', varName: this.canonicalVariableName(targetVar) });
                 } else if (word === 'tMin') {
                     const targetVar = argsContent.trim();
                     this.assertReadableVariableName(targetVar, 'tMin');
-                    tokens.push({ type: 'tMin', varName: targetVar });
+                    tokens.push({ type: 'tMin', varName: this.canonicalVariableName(targetVar) });
                 } else if (word === 'tCount') {
                     const targetVar = argsContent.trim();
                     this.assertReadableVariableName(targetVar, 'tCount');
-                    tokens.push({ type: 'tCount', varName: targetVar });
+                    tokens.push({ type: 'tCount', varName: this.canonicalVariableName(targetVar) });
                 } else if (word === 'countIf') {
                     tokens.push({ type: 'countIf', condition: this.parseExpression(argsContent) });
                 } else if (word === 'getPushRank') {

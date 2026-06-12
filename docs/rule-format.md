@@ -25,14 +25,53 @@ const M = 7
 rule = "[M]○"
 ```
 
+`rule` と `description` は、`+` で文字列を連結できます。数値の定数や式は文字列として連結されます。`+=` で現在の文字列に追記できます。
+
+```taqu
+const TARGET = 10
+rule = "Freeze" + TARGET
+description = "勝ち抜け: " + TARGET + "問"
+
+if TARGET >= 10:
+  rule += " hard"
+  desc += " / 高難度"
+```
+
+`name` は `rule`、`desc` は `description` の別名です。
+
 ## 変数
 
-基本の得点変数は `x`, `y`, `z` です。
+基本の得点変数は `x`, `y`, `z`, `w` です。
 
 ```taqu
 x.label = "○"
 y.label = "×"
 z.label = "Pts"
+w.label = "Bonus"
+w.size = small
+```
+
+ラベル未設定の変数は画面に表示されません。4つすべてを表示すると、プレイヤーカードは1変数分だけ横に広がります。
+
+表示サイズは `normal`（通常）または `small`（小さめ）を指定できます。`w.size = "小さめ"` のように日本語名も使えます。
+
+カード上に並べる専用マークは `mark` で扱えます。`mark += 1` で表示数が増え、5個まではマークを並べ、6以上は `×6` のようにマークと数字で表示します。表示マークは `mark.symbol` で変更できます。
+
+```taqu
+mark.symbol = "👑"
+
+def wrong():
+  mark += 1
+```
+
+`miss` は `mark` の旧名として引き続き使えます。
+
+ルール適用時やラウンド切替時に基本変数や mark の現在値を保持したい場合は、`keep(x)` や `keep(mark)` のように指定します。
+
+```taqu
+keep(x)
+keep(y)
+keep(mark)
 ```
 
 代入するとカスタム変数も作れます。
