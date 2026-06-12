@@ -7,15 +7,14 @@ resolveVal(token, u, sender) {
     if (token.type === 'num') return token.val;
     if (token.type === 'var') {
         if (token.name.startsWith('my_')) {
-            const key = this.canonicalVariableName(token.name.substring(3));
+            const key = token.name.substring(3);
             if (sender) {
                 return (sender[key] !== undefined) ? parseFloat(sender[key]) : 0;
             }
             return 0;
         }
-        const name = this.canonicalVariableName(token.name);
-        if (this.constants[name] !== undefined) return this.constants[name];
-        return (u[name] !== undefined) ? parseFloat(u[name]) : 0;
+        if (this.constants[token.name] !== undefined) return this.constants[token.name];
+        return (u[token.name] !== undefined) ? parseFloat(u[token.name]) : 0;
     }
 
     if (token.type === 'tProd') {
@@ -159,15 +158,8 @@ runCommands(commands, u, sender = null, callStack = []) {
         if (cmd.type === 'call') {
             if (cmd.func === 'win') u._status = 'win';
             else if (cmd.func === 'lose') u._status = 'lose';
-            else if (cmd.func === 'lock') {
-                u.isLocked = true;
-                if (cmd.lockDisplayKey) u.lockDisplayKey = cmd.lockDisplayKey;
-                else delete u.lockDisplayKey;
-            }
-            else if (cmd.func === 'unlock') {
-                u.isLocked = false;
-                delete u.lockDisplayKey;
-            }
+            else if (cmd.func === 'lock') u.isLocked = true;
+            else if (cmd.func === 'unlock') u.isLocked = false;
             else if (cmd.func === 'tLock'   || cmd.func === 'tlock')   u.isTeamLocked = true;
             else if (cmd.func === 'tUnlock' || cmd.func === 'tunlock') u.isTeamLocked = false;
             else if (cmd.func === 'throughAns') u._throughAns = true;
@@ -193,10 +185,6 @@ runCommands(commands, u, sender = null, callStack = []) {
             this.config[cmd.key].color = cmd.color || null;
             this._configChanged = true;
         }
-        else if (cmd.type === 'setStatSize') {
-            this.config[cmd.key].size = cmd.size === 'small' ? 'small' : 'normal';
-            this._configChanged = true;
-        }
         else if (cmd.type === 'repeat') {
             const count = Math.min(1000, Math.max(0, Math.floor(this.evaluateRPN(cmd.count, u, sender))));
             for (let i = 0; i < count; i++) {
@@ -210,8 +198,7 @@ runCommands(commands, u, sender = null, callStack = []) {
             u._global_queue.push({ type: 'broadcast', target: cmd.target, expr: cmd.value });
         }
         else if (cmd.type === 'resetVar') {
-            const key = this.canonicalVariableName(cmd.var);
-            u[key] = this.normalizeSpecialVariable(key, this.initialState[key] ?? 0);
+            u[cmd.var] = this.normalizeSpecialVariable(cmd.var, this.initialState[cmd.var] ?? 0);
         }
         else if (cmd.type === 'setFlavorText') {
             u._flavorText = cmd.text;
@@ -258,7 +245,7 @@ runCommands(commands, u, sender = null, callStack = []) {
         else if (cmd.type === 'assign') {
             const _isMy = cmd.var.startsWith('my_') && sender !== null;
             const _target = _isMy ? sender : u;
-            const _key = this.canonicalVariableName(_isMy ? cmd.var.slice(3) : cmd.var);
+            const _key = _isMy ? cmd.var.slice(3) : cmd.var;
             const val = this.evaluateRPN(cmd.expr, u, sender);
             if (_target[_key] === undefined) _target[_key] = 0;
             if (cmd.op === '=') _target[_key] = val;
@@ -294,7 +281,7 @@ runCommands(commands, u, sender = null, callStack = []) {
 
 prepareExecutionUser(user) {
     const u = { ...user };
-    ['w', 'x', 'y', 'z'].forEach(k => { u[k] = parseFloat(u[k] || 0); });
+    ['x', 'y', 'z'].forEach(k => { u[k] = parseFloat(u[k] || 0); });
     if (u.customData) {
         for (const [key, value] of Object.entries(u.customData)) {
             if (this.isProtectedName(key)) continue;

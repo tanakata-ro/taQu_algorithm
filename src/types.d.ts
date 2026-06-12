@@ -14,7 +14,6 @@ export interface PlayerState {
   x?: number;
   y?: number;
   z?: number;
-  w?: number;
   status?: PlayerStatus;
   isLocked?: boolean;
   isTeamLocked?: boolean;
@@ -31,18 +30,13 @@ export interface StatConfig {
   label: string | null;
   sync: boolean;
   color: string | null;
-  size: 'normal' | 'small';
-  keep: boolean;
 }
 
 export interface RuleConfig {
   x: StatConfig;
   y: StatConfig;
   z: StatConfig;
-  w: StatConfig;
   maxAns: number;
-  missMark: string;
-  missKeep: boolean;
   winText: string | null;
   showWinRank: boolean;
   sortByWinRank: boolean;

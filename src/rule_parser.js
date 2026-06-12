@@ -4,79 +4,6 @@ const { EVENT_NAMES, createDefaultConfig, createEmptyAst } = require('./custom_r
 
 
 module.exports = {
-parseMetadataTextExpression(expr, lineNo = 0) {
-    const parts = [];
-    let current = '';
-    let quote = null;
-    let escape = false;
-    let depth = 0;
-    const text = String(expr || '');
-    for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        if (quote) {
-            current += ch;
-            if (escape) escape = false;
-            else if (ch === '\\') escape = true;
-            else if (ch === quote) quote = null;
-            continue;
-        }
-        if (ch === '"' || ch === "'") {
-            quote = ch;
-            current += ch;
-            continue;
-        }
-        if (ch === '(') depth++;
-        else if (ch === ')' && depth > 0) depth--;
-        if (ch === '+' && depth === 0) {
-            parts.push(current.trim());
-            current = '';
-        } else {
-            current += ch;
-        }
-    }
-    if (quote) throw new Error(`Line ${lineNo}: unclosed string in metadata expression`);
-    parts.push(current.trim());
-
-    const evalContext = {
-        ...this.initialState,
-        ...this.constants,
-        maxAns: this.config.maxAns
-    };
-    const parseStringLiteral = (part) => {
-        const q = part[0];
-        let out = '';
-        for (let i = 1; i < part.length - 1; i++) {
-            const ch = part[i];
-            if (ch !== '\\') {
-                out += ch;
-                continue;
-            }
-            i++;
-            const next = part[i];
-            if (next === 'n') out += '\n';
-            else if (next === 't') out += '\t';
-            else if (next === 'r') out += '\r';
-            else if (next === q || next === '\\') out += next;
-            else out += next ?? '';
-        }
-        return out;
-    };
-
-    return parts.map(part => {
-        if (!part) throw new Error(`Line ${lineNo}: empty part in metadata expression`);
-        if ((part[0] === '"' || part[0] === "'") && part[part.length - 1] === part[0]) {
-            return parseStringLiteral(part);
-        }
-        if (part === 'rule' || part === 'name') return this.ruleName || '';
-        if (part === 'description' || part === 'desc') return this.description || '';
-        try {
-            return String(this.evaluateRPN(this.parseExpression(part), evalContext));
-        } catch (e) {
-            throw new Error(`Line ${lineNo}: invalid metadata expression "${part}": ${e.message}`);
-        }
-    }).join('');
-},
-
 parse(code) {
     const lines = code.split(/\r?\n/);
     this.initialState = {};
@@ -108,18 +35,15 @@ parse(code) {
         }
     };
 
-    const applyMetadataAssignment = (content, shouldApply, lineNo = 0) => {
-        const metadataMatch = content.match(/^(description|desc|rule|name)\s*(=|\+=)\s*(.+)$/);
-        if (metadataMatch) {
-            const [, key, op, expr] = metadataMatch;
-            if (shouldApply) {
-                const value = this.parseMetadataTextExpression(expr, lineNo);
-                if (key === 'description' || key === 'desc') {
-                    this.description = op === '+=' ? (this.description || '') + value : value;
-                } else {
-                    this.ruleName = op === '+=' ? (this.ruleName || '') + value : value;
-                }
-            }
+    const applyMetadataAssignment = (content, shouldApply) => {
+        const descMatch = content.match(/^description\s*=\s*["'](.+)["']$/);
+        if (descMatch) {
+            if (shouldApply) this.description = descMatch[1];
+            return true;
+        }
+        const nameMatch = content.match(/^(?:rule|name)\s*=\s*["'](.+)["']$/);
+        if (nameMatch) {
+            if (shouldApply) this.ruleName = nameMatch[1];
             return true;
         }
         return false;
@@ -173,21 +97,21 @@ parse(code) {
                         bodyIndent: null
                     };
                     const inlineCmd = parseIfMatch[2] ? parseIfMatch[2].trim() : '';
-                    if (inlineCmd && applyMetadataAssignment(inlineCmd, branchActive, index + 1)) return;
+                    if (inlineCmd && applyMetadataAssignment(inlineCmd, branchActive)) return;
                 } else if (parseElifMatch && parseTimeMetadataBranch) {
                     const branchActive = !parseTimeMetadataBranch.branchTaken && evalParseTimeCondition(parseElifMatch[1], index + 1);
                     parseTimeMetadataBranch.active = branchActive;
                     parseTimeMetadataBranch.branchTaken = parseTimeMetadataBranch.branchTaken || branchActive;
                     parseTimeMetadataBranch.bodyIndent = null;
                     const inlineCmd = parseElifMatch[2] ? parseElifMatch[2].trim() : '';
-                    if (inlineCmd && applyMetadataAssignment(inlineCmd, branchActive, index + 1)) return;
+                    if (inlineCmd && applyMetadataAssignment(inlineCmd, branchActive)) return;
                 } else if (parseElseMatch && parseTimeMetadataBranch) {
                     const branchActive = !parseTimeMetadataBranch.branchTaken;
                     parseTimeMetadataBranch.active = branchActive;
                     parseTimeMetadataBranch.branchTaken = true;
                     parseTimeMetadataBranch.bodyIndent = null;
                     const inlineCmd = parseElseMatch[1] ? parseElseMatch[1].trim() : '';
-                    if (inlineCmd && applyMetadataAssignment(inlineCmd, branchActive, index + 1)) return;
+                    if (inlineCmd && applyMetadataAssignment(inlineCmd, branchActive)) return;
                 } else {
                     parseTimeMetadataBranch = null;
                 }
@@ -242,42 +166,21 @@ parse(code) {
         lastConstName = null;
 
         if (indentLevel === 0) {
-            const labelMatch = content.match(/^([wxyz])\.label\s*=\s*["'](.*)["']$/);
+            const labelMatch = content.match(/^([xyz])\.label\s*=\s*["'](.*)["']$/);
             if (labelMatch) { this.config[labelMatch[1]].label = labelMatch[2]; return; }
 
-            const colorMatch = content.match(/^([wxyz])\.color\s*=\s*["'](.*?)["']$/);
+            const colorMatch = content.match(/^([xyz])\.color\s*=\s*["'](.*?)["']$/);
             if (colorMatch) {
                 const color = colorMatch[2].trim();
                 if (color && !this.isSafeColorValue(color)) throw new Error(`Line ${index + 1}: invalid color value "${color}"`);
                 this.config[colorMatch[1]].color = color || null;
                 return;
             }
-
-            const sizeMatch = content.match(/^([wxyz])\.size\s*=\s*(?:"(normal|small|通常|小さめ)"|'(normal|small|通常|小さめ)'|(normal|small|通常|小さめ))$/);
-            if (sizeMatch) {
-                const sizeValue = sizeMatch[2] || sizeMatch[3] || sizeMatch[4];
-                this.config[sizeMatch[1]].size = (sizeValue === 'small' || sizeValue === '小さめ') ? 'small' : 'normal';
-                return;
-            }
-
-            const markSymbolMatch = content.match(/^(?:mark\.symbol|miss\.mark)\s*=\s*["'](.{1,8})["']$/);
-            if (markSymbolMatch) {
-                this.config.missMark = markSymbolMatch[1] || '×';
-                return;
-            }
         }
 
-        const syncMatch = content.match(/^sync\(([wxyz])\)$/);
+        const syncMatch = content.match(/^sync\(([xyz])\)$/);
         if (syncMatch) {
             this.config[syncMatch[1]].sync = true;
-            return;
-        }
-
-        const keepMatch = content.match(/^keep\((w|x|y|z|mark|miss)\)$/);
-        if (keepMatch) {
-            const keepKey = this.canonicalVariableName(keepMatch[1]);
-            if (keepKey === 'miss') this.config.missKeep = true;
-            else this.config[keepKey].keep = true;
             return;
         }
 
@@ -290,7 +193,7 @@ parse(code) {
             && indentLevel > 0;
         const metadataShouldApply = !isInsideParseTimeMetadataBranch
             || (isParseTimeMetadataChild && parseTimeMetadataBranch.active);
-        if (applyMetadataAssignment(content, metadataShouldApply, index + 1)) return;
+        if (applyMetadataAssignment(content, metadataShouldApply)) return;
 
         const maxAnsMatch = content.match(/^maxAns\s*=\s*(-?\d+)$/);
         if (maxAnsMatch) {

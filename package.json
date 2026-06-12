@@ -1,6 +1,6 @@
 {
   "name": "taqu-algorithm",
-  "version": "1.10.4",
+  "version": "1.10.3",
   "description": "Public algorithm specification and reference implementation for taQu custom rules.",
   "main": "src/index.js",
   "types": "src/types.d.ts",
