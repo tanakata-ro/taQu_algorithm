@@ -28,6 +28,8 @@ function createPlayerState(overrides = {}) {
         x: Number(overrides.x) || 0,
         y: Number(overrides.y) || 0,
         z: Number(overrides.z) || 0,
+        w: Number(overrides.w) || 0,
+        miss: Math.max(0, Math.floor(Number(overrides.miss) || 0)),
         status: overrides.status || 'playing',
         isLocked: !!overrides.isLocked,
         isTeamLocked: !!overrides.isTeamLocked,
@@ -36,6 +38,10 @@ function createPlayerState(overrides = {}) {
         delay: Number(overrides.delay) || 0,
         time: Number(overrides.time) || 0,
         mt: Number(overrides.mt) || 0,
+        isReach: !!overrides.isReach,
+        isLoseReach: !!overrides.isLoseReach,
+        isSpectator: !!overrides.isSpectator,
+        buzzDelayMs: Math.max(0, Math.min(60000, Math.floor(Number(overrides.buzzDelayMs) || 0))),
         customData: { ...(overrides.customData || {}) }
     };
 }

@@ -58,7 +58,7 @@ def correct():
 
 def wrong():
   y = N + 1
-  lock()
+  lock(y)
 
 def next():
   if y > 0:
@@ -167,7 +167,7 @@ def correct():
 def wrong():
   y += 1
   z = y + 1
-  lock()
+  lock(z)
 
 def next():
   if z > 0:
@@ -238,7 +238,3 @@ def through():
   pass`
     }
 };
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = RULE_PRESETS;
-}

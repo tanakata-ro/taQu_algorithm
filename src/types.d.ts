@@ -14,6 +14,8 @@ export interface PlayerState {
   x?: number;
   y?: number;
   z?: number;
+  w?: number;
+  miss?: number;
   status?: PlayerStatus;
   isLocked?: boolean;
   isTeamLocked?: boolean;
@@ -30,13 +32,18 @@ export interface StatConfig {
   label: string | null;
   sync: boolean;
   color: string | null;
+  size: 'normal' | 'large';
+  keep: boolean;
 }
 
 export interface RuleConfig {
   x: StatConfig;
   y: StatConfig;
   z: StatConfig;
+  w: StatConfig;
   maxAns: number;
+  missMark: string;
+  missKeep: boolean;
   winText: string | null;
   showWinRank: boolean;
   sortByWinRank: boolean;
@@ -53,8 +60,6 @@ export class CustomRuleEngine {
   config: RuleConfig;
   constants: Record<string, number>;
   initialState: Record<string, number>;
-  maxExecutionSteps: number;
-
   constructor(options?: RuleEngineOptions);
   parse(code: string): void;
   execute(actionName: RuleEventName | string, user: PlayerState): PlayerState;

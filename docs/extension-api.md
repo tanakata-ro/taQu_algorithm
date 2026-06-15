@@ -10,7 +10,8 @@
 
 - `src/index.js`
 - `src/custom_rule.js`
-- `src/rule_engine.js` と分割された補助モジュール
+- `src/custom_rule.js`（サービス本体と同期した参考実装）
+- `src/rule_engine.js`（従来の読み込み方法を維持する互換入口）
 - `src/types.d.ts`
 - `docs/`
 - `examples/`
