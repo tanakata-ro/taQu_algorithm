@@ -72,6 +72,9 @@ def through():
 
 def next():
   pass
+
+def judge():
+  pass
 ```
 
 - `initialization`: ルール適用時や参加者初期化時
@@ -80,6 +83,7 @@ def next():
 - `wrong`: 誤答判定時
 - `through`: スルー時
 - `next`: 問題終了後の後処理
+- `judge`: ホストが `/judge` を実行した時の手動判定
 
 ## コマンド
 
@@ -93,6 +97,18 @@ unlock()
 tLock()
 tUnlock()
 throughAns()
+```
+
+一括・手動判定:
+
+```taqu
+broadcast(x, 0)
+
+def judge():
+  if x >= 10:
+    win()
+  if x < 10:
+    lose()
 ```
 
 変数更新:

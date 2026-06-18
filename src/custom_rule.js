@@ -7,7 +7,7 @@ const CustomRuleDefaults = (() => {
         return require('./custom_rule_defaults.js');
     }
 
-    const EVENT_NAMES = ['initialization', 'correct', 'wrong', 'through', 'push', 'next'];
+    const EVENT_NAMES = ['initialization', 'correct', 'wrong', 'through', 'push', 'next', 'judge'];
     const PROTECTED_NAMES = [
         'id', 'name', 'socketId', 'flavorText', 'customData', 'status', 'winRank',
         'sessionId', 'isPressed', 'delay', 'isAnswerer', 'time', 'isLocked',
@@ -386,6 +386,15 @@ class CustomRuleEngine {
         content = content.trim();
         if (!content) return null;
 
+        const winTextMatch = content.match(/^winText\s*(=|\+=)\s*(.+)$/);
+        if (winTextMatch) {
+            return {
+                type: 'setWinText',
+                op: winTextMatch[1],
+                value: this.parseMetadataTextExpression(winTextMatch[2])
+            };
+        }
+
         const lockWithValueMatch = content.match(/^lock\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)$/);
             if (lockWithValueMatch) {
                 return { type: 'call', func: 'lock', lockDisplayKey: this.canonicalVariableName(lockWithValueMatch[1]) };
@@ -581,6 +590,7 @@ class CustomRuleEngine {
         this.description = "";
         this.ruleName = "";
         this._configChanged = false;
+        delete this._previousWinText;
 
         let currentDef = 'initialization';
         let stack = [{ indent: -1, commands: this.ast[currentDef] }];
@@ -602,13 +612,15 @@ class CustomRuleEngine {
         };
 
         const applyMetadataAssignment = (content, shouldApply, lineNo = 0) => {
-            const metadataMatch = content.match(/^(description|desc|rule|name)\s*(=|\+=)\s*(.+)$/);
+            const metadataMatch = content.match(/^(description|desc|rule|name|winText)\s*(=|\+=)\s*(.+)$/);
             if (metadataMatch) {
                 const [, key, op, expr] = metadataMatch;
                 if (shouldApply) {
                     const value = this.parseMetadataTextExpression(expr, lineNo);
                     if (key === 'description' || key === 'desc') {
                         this.description = op === '+=' ? (this.description || '') + value : value;
+                    } else if (key === 'winText') {
+                        this.config.winText = op === '+=' ? (this.config.winText || '') + value : value;
                     } else {
                         this.ruleName = op === '+=' ? (this.ruleName || '') + value : value;
                     }
@@ -694,7 +706,7 @@ class CustomRuleEngine {
             }
             const currentCommandList = stack[stack.length - 1].commands;
 
-            const defMatch = content.match(/^def\s+(correct|wrong|through|push|next)\(\):$/);
+            const defMatch = content.match(/^def\s+(correct|wrong|through|push|next|judge)\(\):$/);
             if (defMatch) {
                 currentDef = defMatch[1];
                 stack = [{ indent: -1, commands: this.ast[currentDef] }];
@@ -783,7 +795,7 @@ class CustomRuleEngine {
                 && indentLevel > 0;
             const metadataShouldApply = !isInsideParseTimeMetadataBranch
                 || (isParseTimeMetadataChild && parseTimeMetadataBranch.active);
-            if (applyMetadataAssignment(content, metadataShouldApply, index + 1)) return;
+            if (currentDef === 'initialization' && applyMetadataAssignment(content, metadataShouldApply, index + 1)) return;
 
             const maxAnsMatch = content.match(/^maxAns\s*=\s*(-?\d+)$/);
             if (maxAnsMatch) {
@@ -792,9 +804,6 @@ class CustomRuleEngine {
                 this.config.maxAns = ma;
                 return;
             }
-
-            const winTextMatch = content.match(/^winText\s*=\s*["'](.*)["']$/);
-            if (winTextMatch) { this.config.winText = winTextMatch[1]; return; }
 
             const showWinRankMatch = content.match(/^showWinRank\s*=\s*(true|false|True|False)$/);
             if (showWinRankMatch) { this.config.showWinRank = showWinRankMatch[1].toLowerCase() === 'true'; return; }
@@ -1173,6 +1182,15 @@ class CustomRuleEngine {
                 this.config[cmd.key].size = cmd.size === 'small' ? 'small' : 'normal';
                 this._configChanged = true;
             }
+            else if (cmd.type === 'setWinText') {
+                if (!Object.prototype.hasOwnProperty.call(this, '_previousWinText')) {
+                    this._previousWinText = this.config.winText ?? null;
+                }
+                this.config.winText = cmd.op === '+='
+                    ? (this.config.winText || '') + cmd.value
+                    : cmd.value;
+                this._configChanged = true;
+            }
             else if (cmd.type === 'repeat') {
                 const count = Math.min(1000, Math.max(0, Math.floor(this.evaluateRPN(cmd.count, u, sender))));
                 for (let i = 0; i < count; i++) {
@@ -1217,19 +1235,15 @@ class CustomRuleEngine {
                     _snap[k] = u[k];
                 }
                 const _afterCmds = commands.slice(cmdIndex + 1);
-                // 次のコマンドもscopeなら continuationなしで積んでループ継続（複数scope対応）
-                const _nextIsScope = _afterCmds.length > 0 && _afterCmds[0].type === 'scope';
                 u._global_queue.push({
                     type: 'scope_exec',
                     condition: cmd.condition,
                     commands: cmd.commands,
                     actorSnapshot: _snap,
-                    continuation: _nextIsScope ? null : (_afterCmds.length ? _afterCmds : null)
+                    continuation: _afterCmds.length ? _afterCmds : null
                 });
-                if (!_nextIsScope) {
-                    u._scopePending = true;
-                    break;
-                }
+                u._scopePending = true;
+                break;
             }
             else if (cmd.type === 'assign') {
                 const _isMy = cmd.var.startsWith('my_') && sender !== null;
@@ -1270,6 +1284,10 @@ class CustomRuleEngine {
 
     prepareExecutionUser(user) {
         const u = { ...user };
+        [
+            '_global_queue', '_others_queue', '_team_queue', '_giveAns_queue', '_throughAns',
+            '_flavorText', '_resetFlavorText', '_mutatedKeys', '_scopePending'
+        ].forEach(key => { delete u[key]; });
         ['w', 'x', 'y', 'z'].forEach(k => { u[k] = parseFloat(u[k] || 0); });
         if (u.customData) {
             for (const [key, value] of Object.entries(u.customData)) {

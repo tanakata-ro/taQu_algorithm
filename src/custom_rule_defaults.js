@@ -1,4 +1,4 @@
-const EVENT_NAMES = ['initialization', 'correct', 'wrong', 'through', 'push', 'next'];
+const EVENT_NAMES = ['initialization', 'correct', 'wrong', 'through', 'push', 'next', 'judge'];
 
 const PROTECTED_NAMES = [
     'id', 'name', 'socketId', 'flavorText', 'customData', 'status', 'winRank',

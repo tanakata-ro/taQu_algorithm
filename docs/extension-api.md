@@ -43,6 +43,8 @@ const after = applyAction(ruleText, 'correct', {
 });
 ```
 
+`action` には `correct`, `wrong`, `through`, `push`, `next`, `judge` などのイベント名を指定できます。
+
 ## ブラウザ拡張でできること
 
 例:

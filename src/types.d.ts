@@ -4,7 +4,8 @@ export type RuleEventName =
   | 'correct'
   | 'wrong'
   | 'through'
-  | 'next';
+  | 'next'
+  | 'judge';
 
 export type PlayerStatus = 'playing' | 'win' | 'lose';
 
@@ -32,7 +33,7 @@ export interface StatConfig {
   label: string | null;
   sync: boolean;
   color: string | null;
-  size: 'normal' | 'large';
+  size: 'normal' | 'small';
   keep: boolean;
 }
 
