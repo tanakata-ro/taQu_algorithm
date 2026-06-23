@@ -74,6 +74,7 @@ class CustomRuleEngine {
         this.constants = {};
         this.constantDescriptions = {};
         this.userFunctions = {};
+        this.eventParams = {};
         this._steps = 0; // execute ごとにリセットする実行ステップカウンタ
         this.description = "";
         this.ruleName = "";
@@ -133,6 +134,13 @@ class CustomRuleEngine {
         }
     }
 
+    assertEventParamName(name, context = 'event parameter') {
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name || '')) {
+            throw new Error(`${context}: invalid parameter name "${name}"`);
+        }
+        this.assertWritableName(name, context);
+    }
+
     tokenize(str) {
         const tokens = [];
         let i = 0;
@@ -147,6 +155,34 @@ class CustomRuleEngine {
             if (expression.startsWith('!=', i)) { tokens.push('!='); i += 2; continue; }
             if (expression.startsWith('>=', i)) { tokens.push('>='); i += 2; continue; }
             if (expression.startsWith('<=', i)) { tokens.push('<='); i += 2; continue; }
+
+            if (char === '"' || char === "'") {
+                const quote = char;
+                let value = '';
+                i++;
+                while (i < expression.length) {
+                    const ch = expression[i];
+                    if (ch === '\\') {
+                        const next = expression[i + 1];
+                        if (next === 'n') value += '\n';
+                        else if (next === 't') value += '\t';
+                        else if (next === quote || next === '\\') value += next;
+                        else value += next ?? '';
+                        i += 2;
+                        continue;
+                    }
+                    if (ch === quote) {
+                        i++;
+                        tokens.push({ type: 'str', val: value });
+                        value = null;
+                        break;
+                    }
+                    value += ch;
+                    i++;
+                }
+                if (value !== null) throw new Error(`Unclosed string literal in expression "${expression}"`);
+                continue;
+            }
 
             if (/[\d.]/.test(char)) {
                 let numStr = char;
@@ -395,6 +431,14 @@ class CustomRuleEngine {
             };
         }
 
+        const showWinRankMatch = content.match(/^showWinRank\s*=\s*(true|false|True|False)$/);
+        if (showWinRankMatch) {
+            return {
+                type: 'setShowWinRank',
+                value: showWinRankMatch[1].toLowerCase() === 'true'
+            };
+        }
+
         const lockWithValueMatch = content.match(/^lock\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)$/);
             if (lockWithValueMatch) {
                 return { type: 'call', func: 'lock', lockDisplayKey: this.canonicalVariableName(lockWithValueMatch[1]) };
@@ -585,6 +629,7 @@ class CustomRuleEngine {
         this.constants = {};
         this.constantDescriptions = {};
         this.userFunctions = {};
+        this.eventParams = {};
         this.ast = createEmptyAst();
         this.config = createDefaultConfig();
         this.description = "";
@@ -706,9 +751,14 @@ class CustomRuleEngine {
             }
             const currentCommandList = stack[stack.length - 1].commands;
 
-            const defMatch = content.match(/^def\s+(correct|wrong|through|push|next|judge)\(\):$/);
+            const defMatch = content.match(/^def\s+(correct|wrong|through|push|next|judge)\(([^)]*)\):$/);
             if (defMatch) {
                 currentDef = defMatch[1];
+                const params = defMatch[2].trim()
+                    ? defMatch[2].split(',').map(v => v.trim()).filter(Boolean)
+                    : [];
+                params.forEach(param => this.assertEventParamName(param, `Line ${index + 1}`));
+                this.eventParams[currentDef] = params;
                 stack = [{ indent: -1, commands: this.ast[currentDef] }];
                 return;
             }
@@ -806,7 +856,7 @@ class CustomRuleEngine {
             }
 
             const showWinRankMatch = content.match(/^showWinRank\s*=\s*(true|false|True|False)$/);
-            if (showWinRankMatch) { this.config.showWinRank = showWinRankMatch[1].toLowerCase() === 'true'; return; }
+            if (showWinRankMatch && currentDef === 'initialization') { this.config.showWinRank = showWinRankMatch[1].toLowerCase() === 'true'; return; }
 
             const sortByWinRankMatch = content.match(/^sortByWinRank\s*=\s*(true|false|True|False)$/);
             if (sortByWinRankMatch) { this.config.sortByWinRank = sortByWinRankMatch[1].toLowerCase() === 'true'; return; }
@@ -991,6 +1041,7 @@ class CustomRuleEngine {
     resolveVal(token, u, sender) {
         if (typeof token === 'number') return token;
         if (token.type === 'num') return token.val;
+        if (token.type === 'str') return token.val;
         if (token.type === 'var') {
             if (token.name.startsWith('my_')) {
                 const key = this.canonicalVariableName(token.name.substring(3));
@@ -1001,7 +1052,9 @@ class CustomRuleEngine {
             }
             const name = this.canonicalVariableName(token.name);
             if (this.constants[name] !== undefined) return this.constants[name];
-            return (u[name] !== undefined) ? parseFloat(u[name]) : 0;
+            if (u[name] === undefined) return 0;
+            if (typeof u[name] === 'string') return u[name];
+            return parseFloat(u[name]);
         }
 
         if (token.type === 'tProd') {
@@ -1175,21 +1228,24 @@ class CustomRuleEngine {
                 u._flashBorderColor = { color: cmd.color, duration: cmd.duration };
             }
             else if (cmd.type === 'setStatColor') {
-                this.config[cmd.key].color = cmd.color || null;
-                this._configChanged = true;
+                const colors = (u.displayStatColors && typeof u.displayStatColors === 'object')
+                    ? { ...u.displayStatColors }
+                    : {};
+                if (cmd.color) colors[cmd.key] = cmd.color;
+                else delete colors[cmd.key];
+                u.displayStatColors = colors;
             }
             else if (cmd.type === 'setStatSize') {
                 this.config[cmd.key].size = cmd.size === 'small' ? 'small' : 'normal';
                 this._configChanged = true;
             }
             else if (cmd.type === 'setWinText') {
-                if (!Object.prototype.hasOwnProperty.call(this, '_previousWinText')) {
-                    this._previousWinText = this.config.winText ?? null;
-                }
-                this.config.winText = cmd.op === '+='
-                    ? (this.config.winText || '') + cmd.value
+                u.displayWinText = cmd.op === '+='
+                    ? ((u.displayWinText ?? this.config.winText ?? '') + cmd.value)
                     : cmd.value;
-                this._configChanged = true;
+            }
+            else if (cmd.type === 'setShowWinRank') {
+                u.displayShowWinRank = !!cmd.value;
             }
             else if (cmd.type === 'repeat') {
                 const count = Math.min(1000, Math.max(0, Math.floor(this.evaluateRPN(cmd.count, u, sender))));
@@ -1300,12 +1356,27 @@ class CustomRuleEngine {
         return u;
     }
 
-    execute(actionName, user) {
+    execute(actionName, user, eventArgs = {}) {
         const commands = this.ast[actionName];
         if (!commands) return user;
         this._steps = 0;
         let u = this.prepareExecutionUser(user);
+        const params = this.eventParams?.[actionName] || [];
+        const previousParamValues = {};
+        params.forEach(param => {
+            previousParamValues[param] = {
+                exists: Object.prototype.hasOwnProperty.call(u, param),
+                value: u[param]
+            };
+            u[param] = Object.prototype.hasOwnProperty.call(eventArgs || {}, param)
+                ? eventArgs[param]
+                : '';
+        });
         this.runCommands(commands, u);
+        params.forEach(param => {
+            if (previousParamValues[param].exists) u[param] = previousParamValues[param].value;
+            else delete u[param];
+        });
         delete u._scopePending;
         return u;
     }

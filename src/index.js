@@ -42,6 +42,11 @@ function createPlayerState(overrides = {}) {
         isLoseReach: !!overrides.isLoseReach,
         isSpectator: !!overrides.isSpectator,
         buzzDelayMs: Math.max(0, Math.min(60000, Math.floor(Number(overrides.buzzDelayMs) || 0))),
+        displayStatColors: (overrides.displayStatColors && typeof overrides.displayStatColors === 'object') ? { ...overrides.displayStatColors } : {},
+        displayWinText: overrides.displayWinText ?? null,
+        displayShowWinRank: overrides.displayShowWinRank ?? null,
+        winTextSnapshot: overrides.winTextSnapshot ?? null,
+        showWinRankSnapshot: overrides.showWinRankSnapshot ?? null,
         customData: { ...(overrides.customData || {}) }
     };
 }
@@ -53,7 +58,7 @@ function finalizeRuleResult(result) {
 
 function applyAction(code, action, playerState, options = {}) {
     const engine = createRuleEngine(code, options);
-    return finalizeRuleResult(engine.execute(action, createPlayerState(playerState)));
+    return finalizeRuleResult(engine.execute(action, createPlayerState(playerState), options.eventArgs || {}));
 }
 
 module.exports = {

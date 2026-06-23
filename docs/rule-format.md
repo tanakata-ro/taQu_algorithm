@@ -85,6 +85,18 @@ def judge():
 - `next`: 問題終了後の後処理
 - `judge`: ホストが `/judge` を実行した時の手動判定
 
+`correct` / `wrong` / `through` は、任意で `key` 引数を受け取れます。
+ホストアプリケーションが同時押しキーを渡した場合、その値をイベント内で参照できます。
+引数なしの従来形式もそのまま使えます。
+
+```taqu
+def correct(key):
+  if key == "Enter":
+    x += 10
+  else:
+    x += 1
+```
+
 ## コマンド
 
 勝敗やロックを操作するコマンドです。
@@ -118,6 +130,18 @@ x += 1
 y -= 1
 z *= 2
 ```
+
+表示設定:
+
+```taqu
+x.color = "red"
+winText = "FINALIST"
+showWinRank = false
+```
+
+トップレベルでは全体設定として扱われます。
+`def correct()` や `if` の中などイベント実行中に書いた場合は、対象プレイヤー個別の表示設定として扱われます。
+対象は `x.color` / `y.color` / `z.color` / `w.color`、`winText`、`showWinRank` です。
 
 条件分岐:
 

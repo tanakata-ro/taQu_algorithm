@@ -25,7 +25,12 @@ export interface PlayerState {
   delay?: number;
   time?: number;
   mt?: number;
-  customData?: Record<string, number | string | boolean>;
+  displayStatColors?: Partial<Record<'w' | 'x' | 'y' | 'z', string>>;
+  displayWinText?: string | null;
+  displayShowWinRank?: boolean | null;
+  winTextSnapshot?: string | null;
+  showWinRankSnapshot?: boolean | null;
+  customData?: Record<string, number | string | boolean | null | object>;
   [key: string]: unknown;
 }
 
@@ -53,6 +58,7 @@ export interface RuleConfig {
 
 export interface RuleEngineOptions {
   maxExecutionSteps?: number;
+  eventArgs?: Record<string, string | number | boolean | null | undefined>;
 }
 
 export class CustomRuleEngine {
@@ -63,7 +69,7 @@ export class CustomRuleEngine {
   initialState: Record<string, number>;
   constructor(options?: RuleEngineOptions);
   parse(code: string): void;
-  execute(actionName: RuleEventName | string, user: PlayerState): PlayerState;
+  execute(actionName: RuleEventName | string, user: PlayerState, eventArgs?: Record<string, string | number | boolean | null | undefined>): PlayerState;
   executeContinuation(user: PlayerState, commands: unknown[]): PlayerState;
   parseExpression(expression: string): unknown[];
   evaluateRPN(rpnQueue: unknown[], user: PlayerState, sender?: PlayerState | null): number;
